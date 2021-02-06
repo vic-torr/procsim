@@ -10,7 +10,7 @@ import numpy as np
 from matplotlib import patches
 from matplotlib.pyplot import (axhline, axvline, figure, grid, margins, plot,
                                show, stem, subplot, title, xlabel, xlim,
-                               xscale, ylabel)
+                               xscale, ylabel, cm)
 from numpy import angle, arange, array, asarray, cos, log10, pi, tan, unwrap
 from scipy import misc, signal
 from scipy.fft import fft, irfft, rfft
@@ -18,7 +18,7 @@ from scipy.signal import (bessel, bilinear, buttap, butter, cheb2ap, cheb2ord,
                           cheby1, cheby2, ellip, freqz, lfilter, tf2zpk,
                           zpk2tf)
 
-from zplane import zplane
+#from zplane import zplane
 
 
 # %%
@@ -55,7 +55,7 @@ def test_gera_seno():
     gera_seno(A, f, fs, phi, N)
 
 # %%
-def plotsin(data, t=None, ylabel="y(t)", xlabel="t(s)", title=None, space="linspace", save=None):
+def plotsin(data, t=None, ylabel="y(t)", xlabel="t(s)", title="", space="linspace", save=None):
     if t is None and not type(data) is list:
         t = np.linspace(0, len(data), len(data))
     figure, ax = plt.subplots(1)
@@ -68,8 +68,6 @@ def plotsin(data, t=None, ylabel="y(t)", xlabel="t(s)", title=None, space="linsp
     plt.ylabel(ylabel)
     plt.xlabel(xlabel)
     plt.grid()
-    if title != None:
-        plt.title(title)
     plt.show()
     if not save is None:
         figure.savefig(save+title+".png", dpi=figure.dpi)
@@ -79,8 +77,7 @@ def plotsin(data, t=None, ylabel="y(t)", xlabel="t(s)", title=None, space="linsp
 def test_plotsin():
     fs = 500
     (x, t) = gera_seno(A=1, f=0.5, fs=500, phi=0, N=1000)
-
-    plotsin(x, t, ylabel="x[n]", xlabel="nT(s)", save="teste,png")
+    plotsin(x, t, ylabel="x[n]", xlabel="nT(s)", save="teste.png")
     
 # %%
 def plotlog(data, t=None, ylabel="y(t)", xlabel="t(s)", title=None, space="loglog"):
@@ -344,6 +341,100 @@ def transf_1(w):
     
 def test_caracterizacao_de_LTI():
     caracterizacao_de_LTI(transf_1,[1e2,3e5])
+    
+    
+# %%  
+def plot_zpk(zeros, poles, k):
+    t1 = plt.plot(zeros.real, zeros.imag, 'o', markersize=10.0, alpha=0.9)
+    t2 = plt.plot(poles.real, poles.imag, 'x', markersize=10.0, alpha=0.9)
+    grid(True, color = '0.7', linestyle='-', which='major', axis='both')
+    grid(True, color = '0.9', linestyle='-', which='minor', axis='both')
+    title('Poles and zeros')
+    mark_overlapping(zeros)
+    mark_overlapping(poles)
+    plt.ylabel("Im")
+    plt.xlabel("Re")
+
+def mark_overlapping(items):
+    """
+    Given `items` as a list of complex coordinates, make a tally of identical 
+    values, and, if there is more than one, plot a superscript on the graph.
+    """
+    d = defaultdict(int)
+    for i in items:
+        d[i] += 1
+    for item, count in d.items():
+        if count > 1:
+            plt.text(item.real, item.imag, r' ${}^{' + str(count) + '}$', fontsize=13)
+
+def test_plot_zph():
+    #teste
+    num = np.poly1d([1,2])
+    d1= np.poly1d([1,1])
+    d2= np.poly1d([1,3])
+    den = d1*d2
+    sys = signal.TransferFunction(num,den)
+    z,p,k = signal.tf2zpk(num,den)
+    plot_zpk(z,p,k)
+# %%   
+    
+def bode_from_tf(num,dem,start,end):
+    start_freq, end_freq, samples=(start,end,1000)
+    s1 = signal.lti(num,dem)
+    w, mag, phase = s1.bode(w=np.logspace(start_freq,end_freq,samples))
+    plt.subplot(2, 1, 1)
+    plt.semilogx(w, mag)    # Bode magnitude plot
+    plt.ylabel("|H| dB")
+    plt.grid(True, color = '0.7', linestyle='-', which='major', axis='both')
+    plt.subplot(2, 1, 2)
+    plt.semilogx(w, phase)  # Bode phase plot
+    plt.grid(True, color = '0.7', linestyle='-', which='major', axis='both')
+    plt.ylabel("angulo(H) (º)")
+    plt.xlabel("w(rad/s)")
+    plt.show()
+    
+def test_bode_from_tf():
+    coef_denominador = [1, 2, 4]
+    coef_numerador= [1, 0]
+    bode_from_tf(coef_numerador, coef_denominador, -1,2)
+    
+# %%
+def plot_surf(num,den,yrang,xrang,zrang,samples=50):
+    import mpmath
+    import pylab
+    from mpl_toolkits.mplot3d import Axes3D
+    mpmath.dps = 5
+    #%matplotlib widget
+    fig = pylab.figure()
+    ax = Axes3D(fig)
+    X = np.arange(xrang[0], xrang[1], (xrang[1]-xrang[0])/samples)
+    Y = np.arange(yrang[0], yrang[1], (yrang[1]-yrang[0])/samples)
+    X, Y = np.meshgrid(X, Y)
+    xn, yn = X.shape
+    W = X*0
+    for xk in range(xn):
+        for yk in range(yn):
+            z = complex(X[xk,yk],Y[xk,yk])
+            w = np.abs(np.polyval(num,z)/np.polyval(den,z))
+            W[xk,yk] = w
+
+    #ax.set_zlim3d(0, 100)
+    #ax.plot_surface(X, Y, W, rstride=1, cstride=1, cmap=cm.jet)
+    Z = np.clip(W,zrang[0],zrang[1])
+    ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap=cm.jet)
+    #ax.contourf(X, Y, W, zdir='z', offset=-1, cmap=plt.cm.hot)
+    ax.set_zlim(zrang[0], zrang[1])
+    #ax.plot_wireframe(X, Y, W, rstride=5, cstride=5)
+    ax.set_ylabel("Im{s}")
+    ax.set_xlabel("Re{s}")
+    ax.set_zlabel("|H(s)|")
+    ax.set_title("S plane response")     
+    pylab.show()
+    
+def test_plot_surf():
+    coef_denominador = [1, 2, 4]
+    coef_numerador= [1, 0]
+    plot_surf(coef_numerador,coef_denominador,xrang=[-2,0],yrang=[-5,5],zrang=[0,10])
 
 #%%
 if __name__ == "__main__":
@@ -355,5 +446,7 @@ if __name__ == "__main__":
     test_plotlog()
     test_composicao_sinal()
     test_caracterizacao_de_LTI()
+    test_plot_zph()
+    test_plot_surf()
 
 # %%
