@@ -1,9 +1,10 @@
 # To add a new cell, type '# %%'
 # To add a new markdown cell, type '# %% [markdown]'
 # %%
-import cmath
+#import cmath
 from collections import defaultdict
 from math import pi as pi
+from  sympy import symbols,Poly
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,8 +17,8 @@ from scipy import misc, signal
 from scipy.fft import fft, irfft, rfft
 from scipy.signal import (bessel, bilinear, buttap, butter, cheb2ap, cheb2ord,
                           cheby1, cheby2, ellip, freqz, lfilter, tf2zpk,
-                          zpk2tf)
-
+                          zpk2tf, lti)
+from  pprint import pprint
 #from zplane import zplane
 
 
@@ -548,8 +549,44 @@ def test_plot_phase_surf():
  
 #test_plot_phase_surf()
 
+# %%    sym tf
+def sym_tf(num,den):
+    s = symbols('s')
+    tf = Poly(num,s)/ Poly(den,s)
+    tf
+    return tf
+  
+def test_sym_tf():
+    sym_tf(
+        [0.001, 0, 0.008, 0, 0.008],
+        [1,0.7746,0.3,0.0684,0.008 ]
+    )
+test_sym_tf()
 
 
+# %%
+def stable_poles(poles):
+    return poles[np.where(poles<= 0)]
+
+def test_stable_poles():
+    poles = np.array([-0.707317+0.01724349j, -0.707317-0.01724349j,
+            0.707317+0.01724349j,  0.707317-0.01724349j])
+    zeros = np.array([-0.707317+0.01724349j, -0.707317-0.01724349j,
+            0.707317+0.01724349j])
+    stable_poles(poles)
+    numerator, denominator = zpk2tf(zeros,poles,1)
+# %%
+
+def tf(num,dem):
+        return lambda s:(np.polyval(num,s)/np.polyval(dem,s))
+def test_tf():
+    poles = np.array([-0.707317+0.01724349j, -0.707317-0.01724349j,
+            0.707317+0.01724349j,  0.707317-0.01724349j])
+    zeros = np.array([-0.707317+0.01724349j, -0.707317-0.01724349j,
+            0.707317+0.01724349j])
+    numerator, denominator = zpk2tf(zeros,poles,1)
+
+    tf(numerator,denominator)(0)
 
 
 #%%
@@ -566,5 +603,7 @@ if __name__ == "__main__":
     test_plot_surf()
     test_plot_abs_surf()
     test_plot_phase_surf()
+    test_tf()
+    test_stable_poles()
 
 # %%
