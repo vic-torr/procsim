@@ -346,7 +346,10 @@ def test_caracterizacao_de_LTI():
     
 # %%  
 def plot_zpk(zeros, poles, k):
-    t1 = plt.plot(zeros.real, zeros.imag, 'o', markersize=10.0, alpha=0.9)
+    try:
+        t1 = plt.plot(zeros.real, zeros.imag, 'o', markersize=10.0, alpha=0.9)
+    except Exception:
+        pass
     t2 = plt.plot(poles.real, poles.imag, 'x', markersize=10.0, alpha=0.9)
     grid(True, color = '0.7', linestyle='-', which='major', axis='both')
     grid(True, color = '0.9', linestyle='-', which='minor', axis='both')
@@ -355,6 +358,7 @@ def plot_zpk(zeros, poles, k):
     mark_overlapping(poles)
     plt.ylabel("Im")
     plt.xlabel("Re")
+    plt.show()
 
 def mark_overlapping(items):
     """
@@ -377,6 +381,8 @@ def test_plot_zph():
     sys = signal.TransferFunction(num,den)
     z,p,k = signal.tf2zpk(num,den)
     plot_zpk(z,p,k)
+    
+#test_plot_zph()
 # %%   
     
 def bode_from_tf(num,dem,start,end):
@@ -394,16 +400,33 @@ def bode_from_tf(num,dem,start,end):
     plt.xlabel("Frequência w (rad/s)")
     plt.show()
     
+def bode_from_lti(lti,start,end):
+    start_freq, end_freq, samples=(start,end,1000)
+    w, mag, phase = lti.bode(w=np.logspace(start_freq,end_freq,samples))
+    plt.subplot(2, 1, 1)
+    plt.semilogx(w, mag)    # Bode magnitude plot
+    plt.ylabel("Magnitude |H| dB")
+    plt.grid(True, color = '0.7', linestyle='-', which='major', axis='both')
+    plt.subplot(2, 1, 2)
+    plt.semilogx(w, phase)  # Bode phase plot
+    plt.grid(True, color = '0.7', linestyle='-', which='major', axis='both')
+    plt.ylabel("angulo(H) (º)")
+    plt.xlabel("Frequência w (rad/s)")
+    plt.show()    
+    
 def test_bode_from_tf():
     coef_denominador = [1, 2, 4]
     coef_numerador= [1, 0]
     bode_from_tf(coef_numerador, coef_denominador, -1,2)
-    
+    z = []
+    p = [-0.223+0.975j, -0.623+0.782j, -0.901+0.434j,
+         -1.   -0.j,    -0.901-0.434j -0.623-0.782j,
+          -0.223-0.975j]
+    k=1
+    tf_butter = signal.lti(z,p,k )
+    bode_from_lti(tf_butter,-1,2)
 
-
-
-
-#test_plot_phase_surf()
+#test_bode_from_tf()
 # %%  3d phase plot
 
 def abs_surf_plotter(abs_surf,X,Y,yrang,xrang,zrang):
@@ -566,19 +589,27 @@ test_sym_tf()
 
 # %%
 def stable_poles(poles):
-    return poles[np.where(poles<= 0)]
+    return poles[np.where(poles.real<= 0)]
 
 def test_stable_poles():
     poles = np.array([-0.707317+0.01724349j, -0.707317-0.01724349j,
             0.707317+0.01724349j,  0.707317-0.01724349j])
-    zeros = np.array([-0.707317+0.01724349j, -0.707317-0.01724349j,
-            0.707317+0.01724349j])
-    stable_poles(poles)
-    numerator, denominator = zpk2tf(zeros,poles,1)
+    zeros = np.array([-1.707317+0.01724349j, -0.707317-0.01724349j,
+            0.707317+1.01724349j])
+    poles=stable_poles(poles)
+    zeros=stable_poles(zeros)
+    plot_zpk(zeros,poles,1 )
+#test_stable_poles()
 # %%
 
 def tf(num,dem):
-        return lambda s:(np.polyval(num,s)/np.polyval(dem,s))
+    return lambda s:(np.polyval(num,s)/np.polyval(dem,s))
+        
+def tf_zpk(z,p,k):
+    return lambda s:(
+                k*np.prod([s-zk for zk in z])/
+                np.prod([s-pk for pk in p]) )
+              
 def test_tf():
     poles = np.array([-0.707317+0.01724349j, -0.707317-0.01724349j,
             0.707317+0.01724349j,  0.707317-0.01724349j])
@@ -586,9 +617,10 @@ def test_tf():
             0.707317+0.01724349j])
     numerator, denominator = zpk2tf(zeros,poles,1)
 
-    tf(numerator,denominator)(0)
+    print(tf(numerator,denominator)(0))
+    print(tf_zpk(zeros,poles,1)(0))
 
-
+#test_tf()
 #%%
 if __name__ == "__main__":
     test_gera_janela()
