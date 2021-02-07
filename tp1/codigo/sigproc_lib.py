@@ -621,6 +621,15 @@ def test_tf():
     print(tf_zpk(zeros,poles,1)(0))
 
 #test_tf()
+# %%
+def display_zpk(z,p,k):
+    print(f"""
+    Zeros=
+    {np.round(z,3)}
+    Polos=
+    {np.round(p,3)}
+    Ganho=
+    {np.round(k,3)}""")
 #%%
 if __name__ == "__main__":
     test_gera_janela()
