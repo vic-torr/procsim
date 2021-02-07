@@ -1,9 +1,10 @@
 # To add a new cell, type '# %%'
 # To add a new markdown cell, type '# %% [markdown]'
 # %%
-import cmath
+#import cmath
 from collections import defaultdict
 from math import pi as pi
+from  sympy import symbols,Poly
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,8 +17,8 @@ from scipy import misc, signal
 from scipy.fft import fft, irfft, rfft
 from scipy.signal import (bessel, bilinear, buttap, butter, cheb2ap, cheb2ord,
                           cheby1, cheby2, ellip, freqz, lfilter, tf2zpk,
-                          zpk2tf)
-
+                          zpk2tf, lti)
+from  pprint import pprint
 #from zplane import zplane
 
 
@@ -345,7 +346,10 @@ def test_caracterizacao_de_LTI():
     
 # %%  
 def plot_zpk(zeros, poles, k):
-    t1 = plt.plot(zeros.real, zeros.imag, 'o', markersize=10.0, alpha=0.9)
+    try:
+        t1 = plt.plot(zeros.real, zeros.imag, 'o', markersize=10.0, alpha=0.9)
+    except Exception:
+        pass
     t2 = plt.plot(poles.real, poles.imag, 'x', markersize=10.0, alpha=0.9)
     grid(True, color = '0.7', linestyle='-', which='major', axis='both')
     grid(True, color = '0.9', linestyle='-', which='minor', axis='both')
@@ -354,6 +358,7 @@ def plot_zpk(zeros, poles, k):
     mark_overlapping(poles)
     plt.ylabel("Im")
     plt.xlabel("Re")
+    plt.show()
 
 def mark_overlapping(items):
     """
@@ -376,6 +381,8 @@ def test_plot_zph():
     sys = signal.TransferFunction(num,den)
     z,p,k = signal.tf2zpk(num,den)
     plot_zpk(z,p,k)
+    
+#test_plot_zph()
 # %%   
     
 def bode_from_tf(num,dem,start,end):
@@ -384,22 +391,45 @@ def bode_from_tf(num,dem,start,end):
     w, mag, phase = s1.bode(w=np.logspace(start_freq,end_freq,samples))
     plt.subplot(2, 1, 1)
     plt.semilogx(w, mag)    # Bode magnitude plot
-    plt.ylabel("|H| dB")
+    plt.ylabel("Magnitude |H| dB")
     plt.grid(True, color = '0.7', linestyle='-', which='major', axis='both')
     plt.subplot(2, 1, 2)
     plt.semilogx(w, phase)  # Bode phase plot
     plt.grid(True, color = '0.7', linestyle='-', which='major', axis='both')
     plt.ylabel("angulo(H) (º)")
-    plt.xlabel("w(rad/s)")
+    plt.xlabel("Frequência w (rad/s)")
     plt.show()
+    
+def bode_from_lti(lti,start,end):
+    start_freq, end_freq, samples=(start,end,1000)
+    w, mag, phase = lti.bode(w=np.logspace(start_freq,end_freq,samples))
+    plt.subplot(2, 1, 1)
+    plt.semilogx(w, mag)    # Bode magnitude plot
+    plt.ylabel("Magnitude |H| dB")
+    plt.grid(True, color = '0.7', linestyle='-', which='major', axis='both')
+    plt.subplot(2, 1, 2)
+    plt.semilogx(w, phase)  # Bode phase plot
+    plt.grid(True, color = '0.7', linestyle='-', which='major', axis='both')
+    plt.ylabel("angulo(H) (º)")
+    plt.xlabel("Frequência w (rad/s)")
+    plt.show()    
     
 def test_bode_from_tf():
     coef_denominador = [1, 2, 4]
     coef_numerador= [1, 0]
     bode_from_tf(coef_numerador, coef_denominador, -1,2)
-    
-# %%
-def plot_surf(num,den,yrang,xrang,zrang,samples=50):
+    z = []
+    p = [-0.223+0.975j, -0.623+0.782j, -0.901+0.434j,
+         -1.   -0.j,    -0.901-0.434j -0.623-0.782j,
+          -0.223-0.975j]
+    k=1
+    tf_butter = signal.lti(z,p,k )
+    bode_from_lti(tf_butter,-1,2)
+
+#test_bode_from_tf()
+# %%  3d phase plot
+
+def abs_surf_plotter(abs_surf,X,Y,yrang,xrang,zrang):
     import mpmath
     import pylab
     from mpl_toolkits.mplot3d import Axes3D
@@ -407,20 +437,11 @@ def plot_surf(num,den,yrang,xrang,zrang,samples=50):
     #%matplotlib widget
     fig = pylab.figure()
     ax = Axes3D(fig)
-    X = np.arange(xrang[0], xrang[1], (xrang[1]-xrang[0])/samples)
-    Y = np.arange(yrang[0], yrang[1], (yrang[1]-yrang[0])/samples)
-    X, Y = np.meshgrid(X, Y)
-    xn, yn = X.shape
-    W = X*0
-    for xk in range(xn):
-        for yk in range(yn):
-            z = complex(X[xk,yk],Y[xk,yk])
-            w = np.abs(np.polyval(num,z)/np.polyval(den,z))
-            W[xk,yk] = w
-
+    
     #ax.set_zlim3d(0, 100)
     #ax.plot_surface(X, Y, W, rstride=1, cstride=1, cmap=cm.jet)
-    Z = np.clip(W,zrang[0],zrang[1])
+    Z = np.clip(abs_surf,zrang[0],zrang[1])
+    #Z = abs_surf
     ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap=cm.jet)
     #ax.contourf(X, Y, W, zdir='z', offset=-1, cmap=plt.cm.hot)
     ax.set_zlim(zrang[0], zrang[1])
@@ -428,14 +449,187 @@ def plot_surf(num,den,yrang,xrang,zrang,samples=50):
     ax.set_ylabel("Im{s}")
     ax.set_xlabel("Re{s}")
     ax.set_zlabel("|H(s)|")
-    ax.set_title("S plane response")     
+    ax.set_title("S plane amplitude response")     
     pylab.show()
+ 
+def phase_surf_plotter(phase_surf,X,Y,yrang,xrang,zrang,angle="degree"):
+    import mpmath
+    import pylab
+    from mpl_toolkits.mplot3d import Axes3D
+    mpmath.dps = 5
+    #%matplotlib widget
+    
+    #%matplotlib widget
+    limits = [-180,180] if angle=="degree" else [-pi,pi]
+    fig = pylab.figure()
+    ax = Axes3D(fig)
+    #Z = np.clip(phase_surf,limits[0],limits[1])
+    Z = phase_surf
+    ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap=cm.jet)
+    #ax.contourf(X, Y, W, zdir='z', offset=-1, cmap=plt.cm.hot)
+    #ax.set_zlim(limits[0],limits[1])
+    #ax.plot_wireframe(X, Y, W, rstride=5, cstride=5)
+    ax.set_ylabel("Im{s}")
+    ax.set_xlabel("Re{s}")
+    ax.set_zlabel("angle(H(s))")
+    ax.set_title("S plane phase response")     
+    pylab.show()
+ 
+def plot_surf(num,den,yrang,xrang,zrang,samples=50, angle="degree"):
+
+    X = np.arange(xrang[0], xrang[1], (xrang[1]-xrang[0])/samples)
+    Y = np.arange(yrang[0], yrang[1], (yrang[1]-yrang[0])/samples)
+    X, Y = np.meshgrid(X, Y)
+    xn, yn = X.shape
+    abs_surf = X*0
+    phase_surf = X*0
+    
+    rad_to_degree = 180/pi if angle=="degree" else 1
+    for xk in range(xn):
+        for yk in range(yn):
+            z = complex(X[xk,yk],Y[xk,yk])
+            H_z = np.polyval(num,z)/np.polyval(den,z)
+            abs_surf[xk,yk] = np.abs(H_z)
+            phase_surf[xk,yk] = np.angle(H_z)*rad_to_degree
+            
+    import mpmath
+    import pylab
+    from mpl_toolkits.mplot3d import Axes3D
+    mpmath.dps = 5
+    #%matplotlib widget
+    abs_surf_plotter(abs_surf,X,Y,yrang,xrang,zrang)
+    
+    #%matplotlib widget
+    phase_surf_plotter(phase_surf,X,Y,yrang,xrang,zrang,angle="degree")
     
 def test_plot_surf():
+    z = []
+    k= 2.4873413456829807e+23
+    p = np.array([ -489.3491+2143.9785j , -1371.1257+1719.3373j ,
+       -1981.334  +954.16016j, -2199.1147   -0.j     ,
+       -1981.334  -954.16016j, -1371.1257-1719.3373j ,
+        -489.3491-2143.9785j ], dtype=np.complex64)
+    num, dem = zpk2tf(z,p,k )    
+    plot_surf(num,dem,xrang=[-3000,-500],yrang=[-3000,3000],zrang=[0,100],samples=100,angle="rad")
+   
+#test_plot_surf()
+
+
+
+
+
+
+# %%    interative 3d magnitude plot
+   
+def plot_abs_surf(num,den,yrang,xrang,zrang,samples=50):
+
+    X = np.arange(xrang[0], xrang[1], (xrang[1]-xrang[0])/samples)
+    Y = np.arange(yrang[0], yrang[1], (yrang[1]-yrang[0])/samples)
+    X, Y = np.meshgrid(X, Y)
+    xn, yn = X.shape
+    abs_surf = X*0
+    phase_surf = X*0
+
+    for xk in range(xn):
+        for yk in range(yn):
+            z = complex(X[xk,yk],Y[xk,yk])
+            H_z = np.polyval(num,z)/np.polyval(den,z)
+            abs_surf[xk,yk] = np.abs(H_z)
+            
+    abs_surf_plotter(abs_surf,X,Y,yrang,xrang,zrang)    
+    
+def test_plot_abs_surf():
     coef_denominador = [1, 2, 4]
     coef_numerador= [1, 0]
-    plot_surf(coef_numerador,coef_denominador,xrang=[-2,0],yrang=[-5,5],zrang=[0,10])
+    plot_abs_surf(coef_numerador,coef_denominador,xrang=[-2,0],yrang=[-5,5],zrang=[0,10])
+    
+#test_plot_abs_surf()
 
+# %%    interative 3d phase plot
+   
+def plot_phase_surf(num,den,yrang,xrang,zrang,samples=50,angle="degree"):
+
+    X = np.arange(xrang[0], xrang[1], (xrang[1]-xrang[0])/samples)
+    Y = np.arange(yrang[0], yrang[1], (yrang[1]-yrang[0])/samples)
+    X, Y = np.meshgrid(X, Y)
+    xn, yn = X.shape
+    abs_surf = X*0
+    phase_surf = X*0
+    rad_to_degree = 180/pi if angle=="degree" else 1
+
+    for xk in range(xn):
+        for yk in range(yn):
+            z = complex(X[xk,yk],Y[xk,yk])
+            H_z = np.polyval(num,z)/np.polyval(den,z)
+            phase_surf[xk,yk] = np.angle(H_z)*rad_to_degree
+            
+    phase_surf_plotter(phase_surf,X,Y,yrang,xrang,zrang,angle=angle)
+    
+def test_plot_phase_surf():
+    coef_denominador = [1, 2, 4]
+    coef_numerador= [1, 0]
+    plot_phase_surf(coef_numerador,coef_denominador,xrang=[-2,0],yrang=[-5,5],zrang=[0,10])
+ 
+#test_plot_phase_surf()
+
+# %%    sym tf
+def sym_tf(num,den):
+    s = symbols('s')
+    tf = Poly(num,s)/ Poly(den,s)
+    tf
+    return tf
+  
+def test_sym_tf():
+    sym_tf(
+        [0.001, 0, 0.008, 0, 0.008],
+        [1,0.7746,0.3,0.0684,0.008 ]
+    )
+test_sym_tf()
+
+
+# %%
+def stable_poles(poles):
+    return poles[np.where(poles.real<= 0)]
+
+def test_stable_poles():
+    poles = np.array([-0.707317+0.01724349j, -0.707317-0.01724349j,
+            0.707317+0.01724349j,  0.707317-0.01724349j])
+    zeros = np.array([-1.707317+0.01724349j, -0.707317-0.01724349j,
+            0.707317+1.01724349j])
+    poles=stable_poles(poles)
+    zeros=stable_poles(zeros)
+    plot_zpk(zeros,poles,1 )
+#test_stable_poles()
+# %%
+
+def tf(num,dem):
+    return lambda s:(np.polyval(num,s)/np.polyval(dem,s))
+        
+def tf_zpk(z,p,k):
+    return lambda s:(
+                k*np.prod([s-zk for zk in z])/
+                np.prod([s-pk for pk in p]) )
+              
+def test_tf():
+    poles = np.array([-0.707317+0.01724349j, -0.707317-0.01724349j,
+            0.707317+0.01724349j,  0.707317-0.01724349j])
+    zeros = np.array([-0.707317+0.01724349j, -0.707317-0.01724349j,
+            0.707317+0.01724349j])
+    numerator, denominator = zpk2tf(zeros,poles,1)
+
+    print(tf(numerator,denominator)(0))
+    print(tf_zpk(zeros,poles,1)(0))
+
+#test_tf()
+# %%
+def display_zpk(z,p,k):
+    print(f"""
+    Zeros=
+    {np.round(z,3)}
+    Polos=
+    {np.round(p,3)}
+    Ganho=
+    {np.round(k,3)}""")
 #%%
 if __name__ == "__main__":
     test_gera_janela()
@@ -448,5 +642,9 @@ if __name__ == "__main__":
     test_caracterizacao_de_LTI()
     test_plot_zph()
     test_plot_surf()
+    test_plot_abs_surf()
+    test_plot_phase_surf()
+    test_tf()
+    test_stable_poles()
 
 # %%
